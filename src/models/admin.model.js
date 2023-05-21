@@ -28,3 +28,9 @@ const adminSchema = new mongoose.Schema({
 const Admin = mongoose.model('Admins', adminSchema);
 
 module.exports = Admin;
+
+// admin.find({"email" : "nourjanenne3"}).sort().limit(10)
+// admin.findByid(id)
+// admin.save()
+// admin.update()
+// admin.findByIdAndDelete(id)

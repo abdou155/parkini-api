@@ -82,6 +82,7 @@ exports.listAdmins = async (req, res) => {
 exports.findAdmin = async (req, res) => {
   try {
     const id = req.params.id;
+      // https://parkini.com/admin/6454da20f552beae36929cb0 => id 
     const admin = await Admin.findById(id);
     if (admin) {
       res
@@ -104,3 +105,25 @@ exports.deleteAdmin = async (req, res) => {
         res.status(400).send(error);
     }
   };
+
+
+///async await => asyncronos functions
+
+/* function nour  () { 
+    
+
+   let aziz = await  getAziz()
+    let abdess =  await getAbdes()
+
+    postAzizetAbdes(aziz ,  abdess)
+
+} */
+
+
+// get aziz --> tjib aziz ml base ->> temps de reponse inconnu
+// get abdess --> abdes ml base -->> temps de reponse inconnu
+
+
+
+// const  
+// let / var 

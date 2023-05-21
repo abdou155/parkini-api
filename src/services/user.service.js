@@ -45,6 +45,7 @@ exports.deleteUser = async (req, res) => {
 };
 
 
+// ONE TIME PASSWORD 
 
 exports.otpGenerate = async (req, res) => {
     try {

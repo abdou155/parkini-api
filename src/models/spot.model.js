@@ -28,3 +28,4 @@ const spotSchema = new mongoose.Schema({
 const Spot = mongoose.model('Spot', spotSchema);
 
 module.exports = Spot;
+  

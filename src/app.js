@@ -13,9 +13,14 @@ const app = express();
 
 app.use(morgan('dev'));
 app.use(helmet());
+
+// access to the application ( dashboard , app mobile )
 app.use(cors());
 
+// middleware update ( body / header ) http request / response => check if the payload is JSON
 app.use(express.json());
+
+// memoire f serveur de taille sghir --> token -> authebtification
 app.use(
   session({
     secret: process.env.SECRET_KEY,
@@ -24,6 +29,7 @@ app.use(
   })
 );
 
+// ORM -> first connection
 mongoose.connect(process.env.DB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -41,6 +47,8 @@ app.get('/', (req, res) => {
   });
 });
 
+
+// logique metier
 app.use('/api/v1', api);
 
 app.use(middlewares.notFound);
