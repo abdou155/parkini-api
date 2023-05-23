@@ -4,6 +4,7 @@ const userService = require('../services/user.service');
 
 router.get('/', userService.listUsers);
 router.get('/:phone', userService.findUser);
+router.post('/register', userService.registerUser);
 router.post('/otp/generate', userService.otpGenerate);
 router.post('/otp/validate', userService.otpValidate);
 router.post('/profile', userService.updateProfile);

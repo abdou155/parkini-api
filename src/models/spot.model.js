@@ -22,8 +22,13 @@ const spotSchema = new mongoose.Schema({
   },
   max_hour: {
     type: Number,
-  }
+  },
+  reservations: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Reservations'
+  }],
 });
+
 
 const Spot = mongoose.model('Spot', spotSchema);
 

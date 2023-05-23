@@ -1,5 +1,7 @@
 const User = require("../models/user.model");
 const otpGenerator = require('otp-generator');
+var axios = require('axios');
+
 
 exports.listUsers = async (req, res) => {
     try {
@@ -45,6 +47,36 @@ exports.deleteUser = async (req, res) => {
 };
 
 
+exports.registerUser = async (req, res) => {
+    try {
+
+        const { phone , first_name , last_name , email , car_mat } = req.body;
+        const user = await User.findOne({ phone : phone });
+        
+        if ( user ) {
+            res.json({ success: false, message: 'Register failed ! User already exist' ,  user : user  });
+        }else {
+            const newUser = new User({ 
+                phone : phone ,
+                email : email ,
+                first_name : first_name ,
+                last_name : last_name,
+                car_mat : car_mat ,
+                type : 'lead'
+            });
+            await newUser.save()
+            res.status(201).json({ success: true, message: 'User registred' , user : newUser });
+
+        }
+
+
+    } catch (error) {
+        res.status(400).send(error);
+    }
+};
+
+
+
 // ONE TIME PASSWORD 
 
 exports.otpGenerate = async (req, res) => {
@@ -62,11 +94,40 @@ exports.otpGenerate = async (req, res) => {
             await newUser.save()
         }
 
-        //TODO:send OTP
+        // Send OTP via ClickSend SMS
+        var data = JSON.stringify({
+            "messages": [
+              {
+                "source": "php",
+                "body": `Your OTP code is: ${otp}`,
+                "to": phone
+              }
+            ]
+          });
+          
+          var config = {
+            method: 'post',
+            url: 'https://rest.clicksend.com/v3/sms/send',
+            headers: { 
+              'Authorization': 'Basic YWJkZXNzbGFtMTU1QGdtYWlsLmNvbTpUaGVhYmRvdTE5OTdAQA==', 
+              'Content-Type': 'application/json'
+            },
+            data : data
+          };
+          
+          axios(config)
+          .then(function (response) {
+            console.log(JSON.stringify(response.data));
+          })
+          .catch(function (error) {
+            console.log(error);
+          });
+
         req.session.phone = phone;
         res.status(201).json({ success: true, message: 'OTP code sent' , otpCode : otp });
 
     } catch (error) {
+        console.log("🚀 ~ file: user.service.js:109 ~ exports.otpGenerate= ~ error:", error)
         res.status(400).send(error);
     }
 };
@@ -118,3 +179,5 @@ exports.updateProfile = async (req, res) => {
 const verifyOTP = (userOTP, storedOTP) => {
     return userOTP === storedOTP;
 };
+
+
