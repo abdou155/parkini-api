@@ -137,8 +137,7 @@ exports.otpGenerate = async (req, res) => {
 exports.otpValidate = async (req, res) => {
     try {
 
-        const { otp } = req.body;
-        const phone = req.session.phone;
+        const { otp , phone  } = req.body;
         let user = await User.findOne({ phone : phone });
         if( user ){
             const isOTPValid = verifyOTP(otp, user.otp);
