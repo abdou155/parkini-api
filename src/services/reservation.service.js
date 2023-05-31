@@ -1,15 +1,17 @@
 const Reservation = require("../models/reservation.model");
+const Setting = require("../models/setting.model");
 const Spot = require('../models/spot.model');
 const User = require('../models/user.model');
+const Payment = require('../models/payment.model');
+const { v4: uuidv4 } = require('uuid');
 
 // Create a new reservation
 exports.createReservation = async (req, res) => {
     try {
 
-        const { user_id , spot_id , price , checkin , checkout , status } = req.body ;
-        const user = User.findById(user_id);
-        console.log("🚀 ~ file: reservation.service.js:11 ~ exports.createReservation= ~ user:", user)
-        const spot = Spot.findById(spot_id);
+        const { user_id , spot_id } = req.body ;
+        const user = await User.findById(user_id);
+        const spot = await Spot.findById(spot_id);
 
         if( !user._id ) {
             return res.status(404).send({message: 'User not found.'});
@@ -28,73 +30,150 @@ exports.createReservation = async (req, res) => {
 
         spot.reservations.push(reservation._id);
         await spot.save();
+        
+        await checkVip(user_id)
 
-        res.status(201).send(reservations);
+        res.status(201).send(reservation);
 
     } catch (error) {
-        console.log("🚀 ~ file: reservation.service.js:34 ~ exports.createReservation= ~ error:", error)
         res.status(400).send(error);
     }
 };
 
-// Get all spots
-exports.getAllSpots = async (req, res) => {
+const isDateInCurrentMonth = async (date) => {
+    const currentDate = new Date();
+    return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+  }
+
+const checkVip = async (user_id) => {
+    const config = await Setting.findOne({ code : "VIP_LEVEL"})
+    const vip_level = config.content;
+    const reservations = await Reservation.find({user_id : user_id , status : "approved" })
+    let nbRes = 0 ;
+    await reservations.map((item) => {
+        if( isDateInCurrentMonth(item.checkin) ){
+            nbRes = nbRes + 1 ;
+        }
+    })
+    if ( nbRes >= vip_level ){
+        await User.findByIdAndUpdate(user_id , {type : "vips" })
+    }
+    return true;
+}
+
+exports.listReservation = async (req, res) => {
     try {
-        const spots = await Spot.find()
-        res.send(spots);
+        const filter = req.query.filter
+        if(!filter){
+            const reservations = await Reservation.find().populate('user_id').populate({ 
+                path: 'spot_id',
+                populate: {
+                  path: 'parking_id',
+                  model: 'Parking'
+                } 
+             }).populate('payment_id')
+            res.status(200).json({ success: true, message: 'Reservations found successfuly' , data : reservations }); 
+        }else{
+            const reservations = await Reservation.find({status : filter}).populate('user_id').populate({ 
+                path: 'spot_id',
+                populate: {
+                  path: 'parking_id',
+                  model: 'Parking'
+                } 
+             })
+            res.status(200).json({ success: true, message: 'Reservations found successfuly' , data : reservations });
+        }
     } catch (error) {
         res.status(500).send(error);
     }
 };
 
-// Get a spot by id
-exports.getSpotById = async (req, res) => {
+exports.getReservationById = async (req, res) => {
     try {
-        const spot = await Spot.findById(req.params.id).populate('parking', 'name');
-        if (!spot) {
-            return res.status(404).send({message: 'Spot not found.'});
-        }
-        res.send(spot);
+        const id = req.params.id ;
+        const reservation = await Reservation.findById(id).populate('user_id').populate({ 
+            path: 'spot_id',
+            populate: {
+              path: 'parking_id',
+              model: 'Parking'
+            } 
+         })
+         res.status(200).json({ success: true, message: 'Reservation found successfuly' , data : reservation });
     } catch (error) {
         res.status(500).send(error);
     }
 };
 
-// Update a spot by id
-exports.updateSpotById = async (req, res) => {
+exports.processPayment = async (req, res) => {
     try {
-        const spot = await Spot.findById(req.params.id);
-        if (!spot) {
-            return res.status(404).send({message: 'Spot not found.'});
+        const { reservation_id , amount  } = req.body ;
+        const reservation = await Reservation.findById(reservation_id).populate('user_id');
+        if ( reservation.payment_id && reservation.status == "approved" ){
+            return res.status(400).json({ success: false, message: 'Reservation already payed' , data : reservation });
         }
-        const parking = await Parking.findById(req.body.parking_id);
-        if (!parking) {
-            return res.status(404).send({message: 'Parking not found.'});
+
+        if ( reservation.status == "cancelled" ){
+            return res.status(400).json({ success: false, message: 'Reservation is cancelled' , data : reservation });
         }
-        spot.set({
-            ...req.body,
-            parking: parking._id,
-        });
+
+        let promotion_value = 0
+        if (reservation.user_id.type == 'vips'){
+            const config = await Setting.findOne({ code : "PROMOTION"})
+            if (config){
+                promotion_value = +config.content
+            }
+        }
+
+        let payload = new Payment({
+            transactionId : uuidv4(),
+            amount : amount - ( (amount * promotion_value ) / 100 ),
+            date : new Date(),
+            reservation_id : reservation_id
+        })
+
+        const payment = await payload.save();
+        if ( payment._id ){
+            await Reservation.findByIdAndUpdate(reservation_id , {payment_id : payment._id , status : "approved" });
+        }
+        res.status(200).json({ success: true, message: 'Payment created successfuly' , data : payment });
+    } catch (error) {
+        console.log("🚀 ~ file: reservation.service.js:132 ~ exports.processPayment= ~ error:", error)
+        res.status(500).send(error);
+    }
+};
+
+exports.cancelReservation = async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id);
+        if (reservation.status == "pending") {
+            await Reservation.findByIdAndUpdate(req.params.id , { status : "cancelled" });
+            res.status(200).json({ success: true, message: 'Reservation cancelled successfuly'  });
+        }else{
+            res.status(400).json({ success: false, message: 'Reservation is not pending'  });
+        }
+    } catch (error) {
+        res.status(500).send(error);
+    }
+};
+
+exports.deleteReservation = async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id);
+        if (!reservation) {
+            return res.status(404).send({message: 'Reservation not found.'});
+        }
+        const spot = await Spot.findById(reservation.spot_id);
+        const user = await User.findById(reservation.user_id);
+        
+        spot.reservations.pull(reservation._id);
         await spot.save();
-        await parking.save();
-        res.send(spot);
-    } catch (error) {
-        res.status(400).send(error);
-    }
-};
 
-// Delete a spot by id
-exports.deleteSpotById = async (req, res) => {
-    try {
-        const spot = await Spot.findById(req.params.id);
-        if (!spot) {
-            return res.status(404).send({message: 'Spot not found.'});
-        }
-        const parking = await Parking.findById(spot.parking);
-        parking.spots.pull(spot._id);
-        await spot.remove();
-        await parking.save();
-        res.send(spot);
+        user.reservations.pull(reservation._id);
+        await user.save();
+
+        await Reservation.findOneAndDelete({_id : reservation._id})
+
+        res.status(204).json({ success: true, message: 'Reservation deleted successfuly'  });
     } catch (error) {
         res.status(500).send(error);
     }

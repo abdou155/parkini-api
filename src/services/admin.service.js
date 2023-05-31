@@ -1,5 +1,8 @@
 const Admin = require("../models/admin.model");
 const bcrypt = require("bcrypt");
+const Setting = require("../models/setting.model");
+const User = require("../models/user.model");
+const Reservation = require("../models/reservation.model");
 
 exports.createAdmin = async (req, res) => {
   const { email, password, role, firstName, lastName } = req.body;
@@ -96,6 +99,27 @@ exports.findAdmin = async (req, res) => {
   }
 };
 
+exports.editAdmin = async (req, res) => {
+  try {
+    const {_id , firstName , lastName , email , password} = req.body;
+    const admin = await Admin.findById(_id);
+    if (!admin) {
+      res.status(404).json({ success: false, message: "Admin not found" });
+    } else {
+      admin.firstName = firstName
+      admin.lastName = lastName
+      admin.email = email
+      admin.password = await bcrypt.hash(password, 10);
+      admin.save();
+
+      res.status(200).json({ success: true, message: "Admin updated successfuly!" , data : admin });
+
+    }
+  } catch (error) {
+    res.status(500).json({ message: "An error occurred" });
+  }
+};
+
 exports.deleteAdmin = async (req, res) => {
     try {
         const id = req.params.id
@@ -105,6 +129,76 @@ exports.deleteAdmin = async (req, res) => {
         res.status(400).send(error);
     }
   };
+
+
+const isDateInCurrentMonth = async (date) => {
+  const currentDate = new Date();
+  return date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+}
+
+
+const checkVips = async (value) => {
+  const users = await User.find({type : { $ne : "lead"}})
+  if ( users ){
+     users.map(async (el) => {
+        const reservations = await Reservation.find({user_id : el._id , status : "approved" })
+        let nbRes = 0 ;
+        await reservations.map((item) => {
+          if( isDateInCurrentMonth(item.checkin) ){
+            nbRes = nbRes + 1 ;
+          }
+        })
+        if ( nbRes >= value ){
+          await User.findByIdAndUpdate(el._id , {type : "vips" })
+        }else{
+          await User.findByIdAndUpdate(el._id , {type : "customer" })
+        }
+     })     
+  }
+}
+
+exports.configVip = async (req, res) => {
+  try {
+      const { code , content , is_active } = req.body
+      let config = await Setting.findOne({code : code})
+      if(config){
+        config.content = content
+        config.is_active = is_active
+        config.save()
+        if (code == "VIP_LEVEL") {
+          await checkVips(content)
+        }
+        res.status(200).json({ success: true, message: 'Config updated successfuly' , data : config });
+      }else{
+        const newConfig = new Setting({
+          code : code ,
+          content : content ,
+          is_active : is_active
+        })
+        newConfig.save()
+        if (code == "VIP_LEVEL") {
+          await checkVips(content)
+        }
+        res.status(200).json({ success: true, message: 'Config added successfuly' , data : newConfig });
+      }
+  } catch (error) {
+      res.status(400).send(error);
+  }
+};
+
+exports.findConfigVip = async (req, res) => {
+  try {
+      const code = req.params.code
+      let config = await Setting.findOne({code : code})
+      if(config){
+        res.status(200).json({ success: true, message: 'Config founded successfuly' , data : config });
+      }else{
+        res.status(404).json({ success: false, message: 'Config not Found' });
+      }
+  } catch (error) {
+      res.status(400).send(error);
+  }
+};
 
 
 ///async await => asyncronos functions

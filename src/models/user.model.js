@@ -39,6 +39,7 @@ const userSchema = new mongoose.Schema({
     required: false
   },
 
+  //city
   reservations: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Reservations'

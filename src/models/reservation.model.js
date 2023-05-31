@@ -33,16 +33,15 @@ const reservationSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'cancelled'],
     default: 'pending'
   },
-  
-  
- /*  payment_id: {
+   
+  payment_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Payments',
     required: false
-  }, */
+  },
 });
 
-const Spot = mongoose.model('Reservations', reservationSchema);
+const Reservation = mongoose.model('Reservations', reservationSchema);
 
-module.exports = Spot;
+module.exports = Reservation;
   
