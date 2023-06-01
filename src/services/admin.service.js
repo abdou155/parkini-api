@@ -3,6 +3,9 @@ const bcrypt = require("bcrypt");
 const Setting = require("../models/setting.model");
 const User = require("../models/user.model");
 const Reservation = require("../models/reservation.model");
+const Payment = require('../models/payment.model');
+const Spot = require('../models/spot.model');
+
 
 exports.createAdmin = async (req, res) => {
   const { email, password, role, firstName, lastName } = req.body;
@@ -200,6 +203,108 @@ exports.findConfigVip = async (req, res) => {
   }
 };
 
+exports.getReports = async  (req, res) => {
+  try {
+    let reports = {
+       chart:{},
+       stats : {}
+    }
+
+    const customerCount = await User.countDocuments({})
+    reports.stats.customerCount = customerCount;
+   
+   
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const revenu = await Payment.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: today,
+            $lt: tomorrow,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' },
+        },
+      },
+    ])
+    reports.stats.totalRevenu = revenu[0]?.totalAmount ?? 0;
+
+    const vipCount = await User.countDocuments({type : "vips"})
+    reports.stats.vipCount = vipCount;
+
+    const reservedSpots = await Spot.countDocuments({status : "occupied"})
+    reports.stats.reservedSpots = reservedSpots;
+
+    const labels = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    // Fetch reservations data
+    const reservationsPromise = await Reservation.aggregate([
+      {
+        $group: {
+          _id: { $month: '$_id' },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+      .sort({ _id: 1 })
+      .exec();
+
+    // Fetch customers data
+    const customersPromise = await User.aggregate([
+      {
+        $group: {
+          _id: { $month: '$_id' },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+      .sort({ _id: 1 })
+      .exec();
+
+  const reservationsCounts = Array(12).fill(0);
+  const customersCounts = Array(12).fill(0);
+  await reservationsPromise.forEach((item) => {
+    const month = item._id - 4; // Adjust the month index based on your data
+    reservationsCounts[month] = item.count;
+  });
+
+  await customersPromise.forEach((item) => {
+    const month = item._id - 4; // Adjust the month index based on your data
+    customersCounts[month] = item.count;
+  });
+
+
+  const response = {
+    labels,
+    datasets: [
+      {
+        label: "Reservations",
+        color: "info",
+        data: reservationsCounts,
+      },
+      {
+        label: "Customers",
+        color: "dark",
+        data: customersCounts,
+      },
+    ],
+  };
+
+  reports.chart = response
+
+  res.status(200).json({ success: true, message: 'Reports founded successfuly' , data : reports });
+  } catch (error) {
+    console.log("🚀 ~ file: admin.service.js:216 ~ exports.getReports= ~ error:", error)
+    res.status(400).json({ message: "An error occurred" });
+  }
+};
 
 ///async await => asyncronos functions
 

@@ -80,7 +80,7 @@ exports.listReservation = async (req, res) => {
                   path: 'parking_id',
                   model: 'Parking'
                 } 
-             })
+             }).populate('payment_id')
             res.status(200).json({ success: true, message: 'Reservations found successfuly' , data : reservations });
         }
     } catch (error) {
@@ -91,7 +91,7 @@ exports.listReservation = async (req, res) => {
 exports.getReservationById = async (req, res) => {
     try {
         const id = req.params.id ;
-        const reservation = await Reservation.findById(id).populate('user_id').populate({ 
+        const reservation = await Reservation.findById(id).populate('payment_id').populate('user_id').populate({ 
             path: 'spot_id',
             populate: {
               path: 'parking_id',
@@ -99,6 +99,22 @@ exports.getReservationById = async (req, res) => {
             } 
          })
          res.status(200).json({ success: true, message: 'Reservation found successfuly' , data : reservation });
+    } catch (error) {
+        res.status(500).send(error);
+    }
+};
+
+exports.getReservationByUserId = async (req, res) => {
+    try {
+        const user_id = req.params.id ;
+        const reservations = await Reservation.find({user_id}).populate('user_id').populate({ 
+            path: 'spot_id',
+            populate: {
+              path: 'parking_id',
+              model: 'Parking'
+            } 
+         }).populate('payment_id')
+         res.status(200).json({ success: true, message: 'Reservations by user found successfuly' , data : reservations });
     } catch (error) {
         res.status(500).send(error);
     }

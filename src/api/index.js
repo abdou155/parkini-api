@@ -20,4 +20,5 @@ router.use('/parkings', parking);
 router.use('/spots', spot);
 router.use('/reservations', reservation);
 
+
 module.exports = router;
