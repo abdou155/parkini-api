@@ -29,6 +29,7 @@ exports.createReservation = async (req, res) => {
         await user.save();
 
         spot.reservations.push(reservation._id);
+        spot.status = "occupied";
         await spot.save();
         
         await checkVip(user_id)
