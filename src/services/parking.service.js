@@ -27,7 +27,7 @@ exports.getAllParkings = async (req, res) => {
 // Get a parking by id
 exports.getParkingById = async (req, res) => {
   try {
-    const parking = await Parking.findById(req.params.id);
+    const parking = await Parking.findById(req.params.id).populate('spots');
     if (!parking) {
       return res.status(404).send();
     }

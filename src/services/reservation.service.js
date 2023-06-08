@@ -2,6 +2,7 @@ const Reservation = require("../models/reservation.model");
 const Setting = require("../models/setting.model");
 const Spot = require('../models/spot.model');
 const User = require('../models/user.model');
+const Notification = require('../models/notification.model');
 const Payment = require('../models/payment.model');
 const { v4: uuidv4 } = require('uuid');
 
@@ -31,7 +32,10 @@ exports.createReservation = async (req, res) => {
         spot.reservations.push(reservation._id);
         await spot.save();
         
+        console.log("🚀 ~ file: reservation.service.js:43 ~ exports.createReservation= ~ user_id:", user_id)
+
         await checkVip(user_id)
+
 
         res.status(201).send(reservation);
 
@@ -46,9 +50,11 @@ const isDateInCurrentMonth = async (date) => {
   }
 
 const checkVip = async (user_id) => {
+    console.log("🚀 ~ file: reservation.service.js:53 ~ checkVip ~ user_id:", user_id)
     const config = await Setting.findOne({ code : "VIP_LEVEL"})
     const vip_level = config.content;
     const reservations = await Reservation.find({user_id : user_id , status : "approved" })
+    console.log("🚀 ~ file: reservation.service.js:57 ~ checkVip ~ reservations:", reservations)
     let nbRes = 0 ;
     await reservations.map((item) => {
         if( isDateInCurrentMonth(item.checkin) ){
@@ -56,7 +62,10 @@ const checkVip = async (user_id) => {
         }
     })
     if ( nbRes >= vip_level ){
+        console.log("🚀 ~ file: reservation.service.js:61 ~ checkVip ~ vip_level:", vip_level)
+        console.log("🚀 ~ file: reservation.service.js:61 ~ checkVip ~ nbRes:", nbRes)
         await User.findByIdAndUpdate(user_id , {type : "vips" })
+        await pushNotif("You are promoted to a VIP member" , user_id)
     }
     return true;
 }
@@ -194,3 +203,19 @@ exports.deleteReservation = async (req, res) => {
         res.status(500).send(error);
     }
 };
+
+
+const pushNotif = async ( message , user_id ) => {
+    try {
+        const notif = new Notification ({
+            message : message,
+            notif_at : new Date(),
+            user_id : user_id
+        })
+    
+        await notif.save();
+        return ;
+    } catch (error) {
+        console.log("🚀 ~ file: reservation.service.js:212 ~ pushNotif ~ error:", error)
+    }  
+}

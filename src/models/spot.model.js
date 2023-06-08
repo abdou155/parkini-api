@@ -11,9 +11,14 @@ const spotSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  is_ev: {
+  /* is_ev: {
     type: Boolean,
     default: false
+  }, */ 
+  category: {
+    type: String,
+    enum: ['EVSE', 'PREGNENT', 'HANDICAP' , 'NORMAL'],
+    default: 'NORMAL'
   },
   status: {
     type: String,

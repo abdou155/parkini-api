@@ -1,4 +1,5 @@
 const User = require("../models/user.model");
+const Notification = require('../models/notification.model');
 const otpGenerator = require('otp-generator');
 var axios = require('axios');
 
@@ -16,6 +17,16 @@ exports.listUsers = async (req, res) => {
             res.status(200).json({ success: true, message: 'List of Customers' ,  data : users });
 
         }
+    } catch (error) {
+        res.status(400).send(error);
+    }
+};
+
+exports.listNotif = async (req, res) => {
+    try {
+        const id = req.params.id
+        const notifications =  await Notification.find({user_id : id }).populate('user_id') 
+        res.status(200).json({ success: true, message: 'Notifications Found ' ,  data : notifications });
     } catch (error) {
         res.status(400).send(error);
     }
