@@ -5,6 +5,8 @@ const User = require("../models/user.model");
 const Reservation = require("../models/reservation.model");
 const Payment = require('../models/payment.model');
 const Spot = require('../models/spot.model');
+const Notification = require('../models/notification.model');
+
 
 
 exports.createAdmin = async (req, res) => {
@@ -171,6 +173,12 @@ exports.configVip = async (req, res) => {
         if (code == "VIP_LEVEL") {
           await checkVips(content)
         }
+        if (code == "PROMOTION"){
+          const users = await User.find({type : "vips"})
+          await users.map( async (user) => {
+            await pushNotif(`Check our new promotion of ${content} %`,user._id)
+          })
+        }
         res.status(200).json({ success: true, message: 'Config updated successfuly' , data : config });
       }else{
         const newConfig = new Setting({
@@ -188,6 +196,20 @@ exports.configVip = async (req, res) => {
       res.status(400).send(error);
   }
 };
+
+const pushNotif = async ( message , user_id ) => {
+  try {
+      const notification  = new  Notification({
+          message : message,
+          notif_at : new Date(),
+          user_id : user_id
+      })
+      await notification.save();
+      return ;
+  } catch (error) {
+      console.log("🚀 ~ file: reservation.service.js:212 ~ pushNotif ~ error:", error)
+  }  
+}
 
 exports.findConfigVip = async (req, res) => {
   try {
