@@ -3,12 +3,18 @@ const Parking = require('../models/parking.model');
 // Create a new parking
 exports.createParking = async (req, res) => {
   try {
-    console.log("🚀 ~ file: parking.service.js:7 ~ exports.createParking= ~ req.body:", req.body)
+    const existPark = await Parking.findOne({name : req.body.name})
+    console.log("🚀 ~ file: parking.service.js:7 ~ exports.createParking= ~ existPark:", existPark)
+    console.log("🚀 ~ file: parking.service.js:7 ~ exports.createParking= ~ req.body.name:", req.body.name)
+    if ( existPark?.name ) {
+      console.log("🚀 ~ file: parking.service.js:7 ~ exports.createParking= ~ existPark:", existPark.name)
 
-    const parking = new Parking(req.body);
-    console.log("🚀 ~ file: parking.service.js:7 ~ exports.createParking= ~ parking:", parking)
-    await parking.save();
-    res.status(201).send(parking);
+      return res.status(200).json({ success: false, message: 'Parking is already exist'});
+    }else{
+      const parking = new Parking(req.body);
+      await parking.save();
+      res.status(201).send(parking);
+    }
   } catch (error) {
     res.status(400).send(error);
   }
